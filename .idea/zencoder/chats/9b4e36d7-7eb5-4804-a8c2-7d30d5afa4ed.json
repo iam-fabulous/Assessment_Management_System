@@ -1,0 +1,1084 @@
+{
+    "checksum": "0af3b0798eac7b8346466203514a6126a73012dd73f0af98aa9588f4deaef63d",
+    "data": {
+    "id": "9b4e36d7-7eb5-4804-a8c2-7d30d5afa4ed",
+    "createdAt": 1751458803579,
+    "updatedAt": 1751459443252,
+    "title": "JWT Security Key Implementation",
+    "messages": [
+        {
+            "id": "96da9178-f9e9-4e35-9a91-72161d5f3bf4",
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Caused by: org.springframework.beans.BeanInstantiationException: Failed to instantiate [assessment.manager.security.JwtAuthenticationFilter]: Constructor threw exception"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat org.springframework.beans.BeanUtils.instantiateClass(BeanUtils.java:222) ~[spring-beans-6.2.7.jar:6.2.7]"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:122) ~[spring-beans-6.2.7.jar:6.2.7]"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateBean(AbstractAutowireCapableBeanFactory.java:1351) ~[spring-beans-6.2.7.jar:6.2.7]"
+                },
+                {
+                    "type": "text",
+                    "text": "\t... 52 common frames omitted"
+                },
+                {
+                    "type": "text",
+                    "text": "Caused by: io.jsonwebtoken.security.WeakKeyException: The specified key byte array is 248 bits which is not secure enough for any JWT HMAC-SHA algorithm.  The JWT JWA Specification (RFC 7518, Section 3.2) states that keys used with HMAC-SHA algorithms MUST have a size >= 256 bits (the key size must be greater than or equal to the hash output size).  Consider using the io.jsonwebtoken.security.Keys#secretKeyFor(SignatureAlgorithm) method to create a key guaranteed to be secure enough for your preferred HMAC-SHA algorithm.  See https://tools.ietf.org/html/rfc7518#section-3.2 for more information."
+                },
+                {
+                    "type": "text",
+                    "text": "\tat io.jsonwebtoken.security.Keys.hmacShaKeyFor(Keys.java:96) ~[jjwt-api-0.11.5.jar:0.11.5]"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat assessment.manager.security.JwtAuthenticationFilter.<init>(JwtAuthenticationFilter.java:27) ~[classes/:na]"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat java.base/jdk.internal.reflect.DirectConstructorHandleAccessor.newInstance(DirectConstructorHandleAccessor.java:62) ~[na:na]"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:501) ~[na:na]"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:485) ~[na:na]"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat org.springframework.beans.BeanUtils.instantiateClass(BeanUtils.java:196) ~[spring-beans-6.2.7.jar:6.2.7]"
+                },
+                {
+                    "type": "text",
+                    "text": "\t... 54 common frames omitted"
+                }
+            ],
+            "context": {
+                "currentFile": {
+                    "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                    "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                    "sources": [
+                        "opened_tab"
+                    ],
+                    "content": "package assessment.manager.security;\r\n\r\nimport jakarta.servlet.FilterChain;\r\nimport jakarta.servlet.ServletException;\r\nimport jakarta.servlet.http.HttpServletRequest;\r\nimport jakarta.servlet.http.HttpServletResponse;\r\nimport org.springframework.beans.factory.annotation.Autowired;\r\nimport org.springframework.security.authentication.UsernamePasswordAuthenticationToken;\r\nimport org.springframework.security.core.authority.SimpleGrantedAuthority;\r\nimport org.springframework.security.core.context.SecurityContextHolder;\r\nimport org.springframework.security.web.authentication.WebAuthenticationDetailsSource;\r\nimport org.springframework.stereotype.Component;\r\nimport org.springframework.web.filter.OncePerRequestFilter;\r\nimport io.jsonwebtoken.Claims;\r\nimport io.jsonwebtoken.Jwts;\r\nimport io.jsonwebtoken.security.Keys;\r\n\r\nimport javax.crypto.SecretKey;\r\nimport java.io.IOException;\r\nimport java.util.List;\r\nimport java.util.stream.Collectors;\r\n\r\n@Component\r\npublic class JwtAuthenticationFilter extends OncePerRequestFilter {\r\n\r\n    private final String jwtSecret = \"mySecretKey12345678901234567890\"; // Should be in application.properties\r\n    private final SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());\r\n\r\n    @Override\r\n    protected void doFilterInternal(HttpServletRequest request, \r\n                                  HttpServletResponse response, \r\n                                  FilterChain filterChain) throws ServletException, IOException {\r\n        \r\n        String authHeader = request.getHeader(\"Authorization\");\r\n        \r\n        if (authHeader == null || !authHeader.startsWith(\"Bearer \")) {\r\n            filterChain.doFilter(request, response);\r\n            return;\r\n        }\r\n        \r\n        String token = authHeader.substring(7);\r\n        \r\n        try {\r\n            Claims claims = Jwts.parserBuilder()\r\n                    .setSigningKey(key)\r\n                    .build()\r\n                    .parseClaimsJws(token)\r\n                    .getBody();\r\n            \r\n            String username = claims.getSubject();\r\n            @SuppressWarnings(\"unchecked\")\r\n            List<String> authorities = (List<String>) claims.get(\"authorities\");\r\n            \r\n            if (username != null && authorities != null && SecurityContextHolder.getContext().getAuthentication() == null) {\r\n                List<SimpleGrantedAuthority> grantedAuthorities = authorities.stream()\r\n                        .map(SimpleGrantedAuthority::new)\r\n                        .collect(Collectors.toList());\r\n                \r\n                UsernamePasswordAuthenticationToken authToken = \r\n                    new UsernamePasswordAuthenticationToken(username, null, grantedAuthorities);\r\n                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));\r\n                \r\n                SecurityContextHolder.getContext().setAuthentication(authToken);\r\n            }\r\n        } catch (Exception e) {\r\n            // Token is invalid\r\n            logger.error(\"JWT Token validation failed: \" + e.getMessage());\r\n        }\r\n        \r\n        filterChain.doFilter(request, response);\r\n    }\r\n}"
+                },
+                "codebaseEnabled": true,
+                "ragFiles": [
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": [
+                            "keyword_search"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtUtil.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "sources": [
+                            "keyword_search"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/SecurityConfig.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "sources": [
+                            "keyword_search"
+                        ]
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\Main.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\Main.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\exceptions\\UnauthorizedException.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\exceptions\\UnauthorizedException.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "pom.xml",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\pom.xml",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\resources\\application.properties",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\resources\\application.properties",
+                        "sources": []
+                    },
+                    {
+                        "path": ".gitignore",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\.gitignore",
+                        "sources": []
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/enums/UserRole.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\enums\\UserRole.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/data/models/Question.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\data\\models\\Question.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/data/models/Submission.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\data\\models\\Submission.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/data/models/User.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\data\\models\\User.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/SecurityConfig.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/Main.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\Main.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtUtil.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "pom.xml",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\pom.xml",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    }
+                ],
+                "rerankedFiles": [
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java"
+                    }
+                ],
+                "usedFilePaths": [
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": [
+                            "opened_tab"
+                        ],
+                        "content": "package assessment.manager.security;\r\n\r\nimport jakarta.servlet.FilterChain;\r\nimport jakarta.servlet.ServletException;\r\nimport jakarta.servlet.http.HttpServletRequest;\r\nimport jakarta.servlet.http.HttpServletResponse;\r\nimport org.springframework.beans.factory.annotation.Autowired;\r\nimport org.springframework.security.authentication.UsernamePasswordAuthenticationToken;\r\nimport org.springframework.security.core.authority.SimpleGrantedAuthority;\r\nimport org.springframework.security.core.context.SecurityContextHolder;\r\nimport org.springframework.security.web.authentication.WebAuthenticationDetailsSource;\r\nimport org.springframework.stereotype.Component;\r\nimport org.springframework.web.filter.OncePerRequestFilter;\r\nimport io.jsonwebtoken.Claims;\r\nimport io.jsonwebtoken.Jwts;\r\nimport io.jsonwebtoken.security.Keys;\r\n\r\nimport javax.crypto.SecretKey;\r\nimport java.io.IOException;\r\nimport java.util.List;\r\nimport java.util.stream.Collectors;\r\n\r\n@Component\r\npublic class JwtAuthenticationFilter extends OncePerRequestFilter {\r\n\r\n    private final String jwtSecret = \"mySecretKey12345678901234567890\"; // Should be in application.properties\r\n    private final SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());\r\n\r\n    @Override\r\n    protected void doFilterInternal(HttpServletRequest request, \r\n                                  HttpServletResponse response, \r\n                                  FilterChain filterChain) throws ServletException, IOException {\r\n        \r\n        String authHeader = request.getHeader(\"Authorization\");\r\n        \r\n        if (authHeader == null || !authHeader.startsWith(\"Bearer \")) {\r\n            filterChain.doFilter(request, response);\r\n            return;\r\n        }\r\n        \r\n        String token = authHeader.substring(7);\r\n        \r\n        try {\r\n            Claims claims = Jwts.parserBuilder()\r\n                    .setSigningKey(key)\r\n                    .build()\r\n                    .parseClaimsJws(token)\r\n                    .getBody();\r\n            \r\n            String username = claims.getSubject();\r\n            @SuppressWarnings(\"unchecked\")\r\n            List<String> authorities = (List<String>) claims.get(\"authorities\");\r\n            \r\n            if (username != null && authorities != null && SecurityContextHolder.getContext().getAuthentication() == null) {\r\n                List<SimpleGrantedAuthority> grantedAuthorities = authorities.stream()\r\n                        .map(SimpleGrantedAuthority::new)\r\n                        .collect(Collectors.toList());\r\n                \r\n                UsernamePasswordAuthenticationToken authToken = \r\n                    new UsernamePasswordAuthenticationToken(username, null, grantedAuthorities);\r\n                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));\r\n                \r\n                SecurityContextHolder.getContext().setAuthentication(authToken);\r\n            }\r\n        } catch (Exception e) {\r\n            // Token is invalid\r\n            logger.error(\"JWT Token validation failed: \" + e.getMessage());\r\n        }\r\n        \r\n        filterChain.doFilter(request, response);\r\n    }\r\n}"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java"
+                    }
+                ]
+            },
+            "createdAt": 1751458803583,
+            "isInternal": false,
+            "rawContent": {
+                "type": "doc",
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Caused by: org.springframework.beans.BeanInstantiationException: Failed to instantiate [assessment.manager.security.JwtAuthenticationFilter]: Constructor threw exception"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat org.springframework.beans.BeanUtils.instantiateClass(BeanUtils.java:222) ~[spring-beans-6.2.7.jar:6.2.7]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:122) ~[spring-beans-6.2.7.jar:6.2.7]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateBean(AbstractAutowireCapableBeanFactory.java:1351) ~[spring-beans-6.2.7.jar:6.2.7]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\t... 52 common frames omitted"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Caused by: io.jsonwebtoken.security.WeakKeyException: The specified key byte array is 248 bits which is not secure enough for any JWT HMAC-SHA algorithm.  The JWT JWA Specification (RFC 7518, Section 3.2) states that keys used with HMAC-SHA algorithms MUST have a size >= 256 bits (the key size must be greater than or equal to the hash output size).  Consider using the io.jsonwebtoken.security.Keys#secretKeyFor(SignatureAlgorithm) method to create a key guaranteed to be secure enough for your preferred HMAC-SHA algorithm.  See https://tools.ietf.org/html/rfc7518#section-3.2 for more information."
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat io.jsonwebtoken.security.Keys.hmacShaKeyFor(Keys.java:96) ~[jjwt-api-0.11.5.jar:0.11.5]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat assessment.manager.security.JwtAuthenticationFilter.<init>(JwtAuthenticationFilter.java:27) ~[classes/:na]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat java.base/jdk.internal.reflect.DirectConstructorHandleAccessor.newInstance(DirectConstructorHandleAccessor.java:62) ~[na:na]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:501) ~[na:na]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:485) ~[na:na]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat org.springframework.beans.BeanUtils.instantiateClass(BeanUtils.java:196) ~[spring-beans-6.2.7.jar:6.2.7]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\t... 54 common frames omitted"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "63653679-2e53-4e67-8f30-d3168e822df0",
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "The error you're encountering is due to the `WeakKeyException`, which indicates that the key used for signing JWTs is not secure enough. The key you are using is 248 bits, but the HMAC-SHA algorithms require a key size of at least 256 bits.\n\nTo resolve this issue, you need to ensure that your secret key is at least 256 bits long. Here's how you can fix it:\n\n1. **Update the Secret Key**: Modify the `jwtSecret` to be at least 32 characters long (since each character is 8 bits, 32 characters will give you 256 bits).\n\n2. **Use a Secure Key Generation Method**: Alternatively, you can use the `io.jsonwebtoken.security.Keys.secretKeyFor(SignatureAlgorithm)` method to generate a secure key. This method ensures that the key is of the appropriate length for the specified algorithm.\n\nHere's how you can update your `JwtAuthenticationFilter` class:\n\n```java\npackage assessment.manager.security;\n\nimport jakarta.servlet.FilterChain;\nimport jakarta.servlet.ServletException;\nimport jakarta.servlet.http.HttpServletRequest;\nimport jakarta.servlet.http.HttpServletResponse;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.security.authentication.UsernamePasswordAuthenticationToken;\nimport org.springframework.security.core.authority.SimpleGrantedAuthority;\nimport org.springframework.security.core.context.SecurityContextHolder;\nimport org.springframework.security.web.authentication.WebAuthenticationDetailsSource;\nimport org.springframework.stereotype.Component;\nimport org.springframework.web.filter.OncePerRequestFilter;\nimport io.jsonwebtoken.Claims;\nimport io.jsonwebtoken.Jwts;\nimport io.jsonwebtoken.security.Keys;\nimport io.jsonwebtoken.SignatureAlgorithm;\n\nimport javax.crypto.SecretKey;\nimport java.io.IOException;\nimport java.util.List;\nimport java.util.stream.Collectors;\n\n@Component\npublic class JwtAuthenticationFilter extends OncePerRequestFilter {\n\n    // Use a secure method to generate a key\n    private final SecretKey key = Keys.secretKeyFor(SignatureAlgorithm.HS256);\n\n    @Override\n    protected void doFilterInternal(HttpServletRequest request, \n                                  HttpServletResponse response, \n                                  FilterChain filterChain) throws ServletException, IOException {\n        \n        String authHeader = request.getHeader(\"Authorization\");\n        \n        if (authHeader == null || !authHeader.startsWith(\"Bearer \")) {\n            filterChain.doFilter(request, response);\n            return;\n        }\n        \n        String token = authHeader.substring(7);\n        \n        try {\n            Claims claims = Jwts.parserBuilder()\n                    .setSigningKey(key)\n                    .build()\n                    .parseClaimsJws(token)\n                    .getBody();\n            \n            String username = claims.getSubject();\n            @SuppressWarnings(\"unchecked\")\n            List<String> authorities = (List<String>) claims.get(\"authorities\");\n            \n            if (username != null && authorities != null && SecurityContextHolder.getContext().getAuthentication() == null) {\n                List<SimpleGrantedAuthority> grantedAuthorities = authorities.stream()\n                        .map(SimpleGrantedAuthority::new)\n                        .collect(Collectors.toList());\n                \n                UsernamePasswordAuthenticationToken authToken = \n                    new UsernamePasswordAuthenticationToken(username, null, grantedAuthorities);\n                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));\n                \n                SecurityContextHolder.getContext().setAuthentication(authToken);\n            }\n        } catch (Exception e) {\n            // Token is invalid\n            logger.error(\"JWT Token validation failed: \" + e.getMessage());\n        }\n        \n        filterChain.doFilter(request, response);\n    }\n}\n```\n\nBy using `Keys.secretKeyFor(SignatureAlgorithm.HS256)`, you ensure that the key is securely generated and meets the required length for HMAC-SHA256. Make sure to update any other parts of your application that rely on the `jwtSecret` to use this new key."
+                }
+            ],
+            "context": {
+                "currentFile": {
+                    "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                    "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                    "sources": [
+                        "opened_tab"
+                    ],
+                    "content": "package assessment.manager.security;\r\n\r\nimport jakarta.servlet.FilterChain;\r\nimport jakarta.servlet.ServletException;\r\nimport jakarta.servlet.http.HttpServletRequest;\r\nimport jakarta.servlet.http.HttpServletResponse;\r\nimport org.springframework.beans.factory.annotation.Autowired;\r\nimport org.springframework.security.authentication.UsernamePasswordAuthenticationToken;\r\nimport org.springframework.security.core.authority.SimpleGrantedAuthority;\r\nimport org.springframework.security.core.context.SecurityContextHolder;\r\nimport org.springframework.security.web.authentication.WebAuthenticationDetailsSource;\r\nimport org.springframework.stereotype.Component;\r\nimport org.springframework.web.filter.OncePerRequestFilter;\r\nimport io.jsonwebtoken.Claims;\r\nimport io.jsonwebtoken.Jwts;\r\nimport io.jsonwebtoken.security.Keys;\r\n\r\nimport javax.crypto.SecretKey;\r\nimport java.io.IOException;\r\nimport java.util.List;\r\nimport java.util.stream.Collectors;\r\n\r\n@Component\r\npublic class JwtAuthenticationFilter extends OncePerRequestFilter {\r\n\r\n    private final String jwtSecret = \"mySecretKey12345678901234567890\"; // Should be in application.properties\r\n    private final SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());\r\n\r\n    @Override\r\n    protected void doFilterInternal(HttpServletRequest request, \r\n                                  HttpServletResponse response, \r\n                                  FilterChain filterChain) throws ServletException, IOException {\r\n        \r\n        String authHeader = request.getHeader(\"Authorization\");\r\n        \r\n        if (authHeader == null || !authHeader.startsWith(\"Bearer \")) {\r\n            filterChain.doFilter(request, response);\r\n            return;\r\n        }\r\n        \r\n        String token = authHeader.substring(7);\r\n        \r\n        try {\r\n            Claims claims = Jwts.parserBuilder()\r\n                    .setSigningKey(key)\r\n                    .build()\r\n                    .parseClaimsJws(token)\r\n                    .getBody();\r\n            \r\n            String username = claims.getSubject();\r\n            @SuppressWarnings(\"unchecked\")\r\n            List<String> authorities = (List<String>) claims.get(\"authorities\");\r\n            \r\n            if (username != null && authorities != null && SecurityContextHolder.getContext().getAuthentication() == null) {\r\n                List<SimpleGrantedAuthority> grantedAuthorities = authorities.stream()\r\n                        .map(SimpleGrantedAuthority::new)\r\n                        .collect(Collectors.toList());\r\n                \r\n                UsernamePasswordAuthenticationToken authToken = \r\n                    new UsernamePasswordAuthenticationToken(username, null, grantedAuthorities);\r\n                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));\r\n                \r\n                SecurityContextHolder.getContext().setAuthentication(authToken);\r\n            }\r\n        } catch (Exception e) {\r\n            // Token is invalid\r\n            logger.error(\"JWT Token validation failed: \" + e.getMessage());\r\n        }\r\n        \r\n        filterChain.doFilter(request, response);\r\n    }\r\n}"
+                },
+                "codebaseEnabled": true,
+                "ragFiles": [
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": [
+                            "keyword_search"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtUtil.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "sources": [
+                            "keyword_search"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/SecurityConfig.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "sources": [
+                            "keyword_search"
+                        ]
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\Main.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\Main.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\exceptions\\UnauthorizedException.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\exceptions\\UnauthorizedException.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "pom.xml",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\pom.xml",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\resources\\application.properties",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\resources\\application.properties",
+                        "sources": []
+                    },
+                    {
+                        "path": ".gitignore",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\.gitignore",
+                        "sources": []
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/enums/UserRole.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\enums\\UserRole.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/data/models/Question.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\data\\models\\Question.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/data/models/Submission.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\data\\models\\Submission.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/data/models/User.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\data\\models\\User.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/SecurityConfig.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/Main.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\Main.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtUtil.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "pom.xml",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\pom.xml",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    }
+                ],
+                "rerankedFiles": [
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java"
+                    }
+                ],
+                "usedFilePaths": [
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": [
+                            "opened_tab"
+                        ],
+                        "content": "package assessment.manager.security;\r\n\r\nimport jakarta.servlet.FilterChain;\r\nimport jakarta.servlet.ServletException;\r\nimport jakarta.servlet.http.HttpServletRequest;\r\nimport jakarta.servlet.http.HttpServletResponse;\r\nimport org.springframework.beans.factory.annotation.Autowired;\r\nimport org.springframework.security.authentication.UsernamePasswordAuthenticationToken;\r\nimport org.springframework.security.core.authority.SimpleGrantedAuthority;\r\nimport org.springframework.security.core.context.SecurityContextHolder;\r\nimport org.springframework.security.web.authentication.WebAuthenticationDetailsSource;\r\nimport org.springframework.stereotype.Component;\r\nimport org.springframework.web.filter.OncePerRequestFilter;\r\nimport io.jsonwebtoken.Claims;\r\nimport io.jsonwebtoken.Jwts;\r\nimport io.jsonwebtoken.security.Keys;\r\n\r\nimport javax.crypto.SecretKey;\r\nimport java.io.IOException;\r\nimport java.util.List;\r\nimport java.util.stream.Collectors;\r\n\r\n@Component\r\npublic class JwtAuthenticationFilter extends OncePerRequestFilter {\r\n\r\n    private final String jwtSecret = \"mySecretKey12345678901234567890\"; // Should be in application.properties\r\n    private final SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());\r\n\r\n    @Override\r\n    protected void doFilterInternal(HttpServletRequest request, \r\n                                  HttpServletResponse response, \r\n                                  FilterChain filterChain) throws ServletException, IOException {\r\n        \r\n        String authHeader = request.getHeader(\"Authorization\");\r\n        \r\n        if (authHeader == null || !authHeader.startsWith(\"Bearer \")) {\r\n            filterChain.doFilter(request, response);\r\n            return;\r\n        }\r\n        \r\n        String token = authHeader.substring(7);\r\n        \r\n        try {\r\n            Claims claims = Jwts.parserBuilder()\r\n                    .setSigningKey(key)\r\n                    .build()\r\n                    .parseClaimsJws(token)\r\n                    .getBody();\r\n            \r\n            String username = claims.getSubject();\r\n            @SuppressWarnings(\"unchecked\")\r\n            List<String> authorities = (List<String>) claims.get(\"authorities\");\r\n            \r\n            if (username != null && authorities != null && SecurityContextHolder.getContext().getAuthentication() == null) {\r\n                List<SimpleGrantedAuthority> grantedAuthorities = authorities.stream()\r\n                        .map(SimpleGrantedAuthority::new)\r\n                        .collect(Collectors.toList());\r\n                \r\n                UsernamePasswordAuthenticationToken authToken = \r\n                    new UsernamePasswordAuthenticationToken(username, null, grantedAuthorities);\r\n                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));\r\n                \r\n                SecurityContextHolder.getContext().setAuthentication(authToken);\r\n            }\r\n        } catch (Exception e) {\r\n            // Token is invalid\r\n            logger.error(\"JWT Token validation failed: \" + e.getMessage());\r\n        }\r\n        \r\n        filterChain.doFilter(request, response);\r\n    }\r\n}"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java"
+                    }
+                ]
+            },
+            "createdAt": 1751458830081,
+            "isInternal": false
+        },
+        {
+            "id": "a9c7cf48-41ff-4a84-bc56-6ced40f10962",
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Caused by: org.springframework.beans.BeanInstantiationException: Failed to instantiate [assessment.manager.security.JwtAuthenticationFilter]: Constructor threw exception"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat org.springframework.beans.BeanUtils.instantiateClass(BeanUtils.java:222) ~[spring-beans-6.2.7.jar:6.2.7]"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:122) ~[spring-beans-6.2.7.jar:6.2.7]"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateBean(AbstractAutowireCapableBeanFactory.java:1351) ~[spring-beans-6.2.7.jar:6.2.7]"
+                },
+                {
+                    "type": "text",
+                    "text": "\t... 52 common frames omitted"
+                },
+                {
+                    "type": "text",
+                    "text": "Caused by: java.lang.IllegalArgumentException: The ES256 algorithm does not support shared secret keys."
+                },
+                {
+                    "type": "text",
+                    "text": "\tat io.jsonwebtoken.security.Keys.secretKeyFor(Keys.java:140) ~[jjwt-api-0.11.5.jar:0.11.5]"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat assessment.manager.security.JwtAuthenticationFilter.<init>(JwtAuthenticationFilter.java:28) ~[classes/:na]"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat java.base/jdk.internal.reflect.DirectConstructorHandleAccessor.newInstance(DirectConstructorHandleAccessor.java:62) ~[na:na]"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:501) ~[na:na]"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:485) ~[na:na]"
+                },
+                {
+                    "type": "text",
+                    "text": "\tat org.springframework.beans.BeanUtils.instantiateClass(BeanUtils.java:196) ~[spring-beans-6.2.7.jar:6.2.7]"
+                },
+                {
+                    "type": "text",
+                    "text": "\t... 54 common frames omitted"
+                }
+            ],
+            "context": {
+                "currentFile": {
+                    "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                    "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                    "sources": [
+                        "opened_tab"
+                    ],
+                    "content": "package assessment.manager.security;\r\n\r\nimport jakarta.servlet.FilterChain;\r\nimport jakarta.servlet.ServletException;\r\nimport jakarta.servlet.http.HttpServletRequest;\r\nimport jakarta.servlet.http.HttpServletResponse;\r\nimport org.springframework.beans.factory.annotation.Autowired;\r\nimport org.springframework.security.authentication.UsernamePasswordAuthenticationToken;\r\nimport org.springframework.security.core.authority.SimpleGrantedAuthority;\r\nimport org.springframework.security.core.context.SecurityContextHolder;\r\nimport org.springframework.security.web.authentication.WebAuthenticationDetailsSource;\r\nimport org.springframework.stereotype.Component;\r\nimport org.springframework.web.filter.OncePerRequestFilter;\r\nimport io.jsonwebtoken.Claims;\r\nimport io.jsonwebtoken.Jwts;\r\nimport io.jsonwebtoken.security.Keys;\r\n\r\nimport javax.crypto.SecretKey;\r\nimport java.io.IOException;\r\nimport java.util.List;\r\nimport java.util.stream.Collectors;\r\n\r\n@Component\r\npublic class JwtAuthenticationFilter extends OncePerRequestFilter {\r\n\r\n    private final String jwtSecret = \"mySecretKey12345678901234567890\"; // Should be in application.properties\r\n    private final SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());\r\n\r\n    @Override\r\n    protected void doFilterInternal(HttpServletRequest request, \r\n                                  HttpServletResponse response, \r\n                                  FilterChain filterChain) throws ServletException, IOException {\r\n        \r\n        String authHeader = request.getHeader(\"Authorization\");\r\n        \r\n        if (authHeader == null || !authHeader.startsWith(\"Bearer \")) {\r\n            filterChain.doFilter(request, response);\r\n            return;\r\n        }\r\n        \r\n        String token = authHeader.substring(7);\r\n        \r\n        try {\r\n            Claims claims = Jwts.parserBuilder()\r\n                    .setSigningKey(key)\r\n                    .build()\r\n                    .parseClaimsJws(token)\r\n                    .getBody();\r\n            \r\n            String username = claims.getSubject();\r\n            @SuppressWarnings(\"unchecked\")\r\n            List<String> authorities = (List<String>) claims.get(\"authorities\");\r\n            \r\n            if (username != null && authorities != null && SecurityContextHolder.getContext().getAuthentication() == null) {\r\n                List<SimpleGrantedAuthority> grantedAuthorities = authorities.stream()\r\n                        .map(SimpleGrantedAuthority::new)\r\n                        .collect(Collectors.toList());\r\n                \r\n                UsernamePasswordAuthenticationToken authToken = \r\n                    new UsernamePasswordAuthenticationToken(username, null, grantedAuthorities);\r\n                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));\r\n                \r\n                SecurityContextHolder.getContext().setAuthentication(authToken);\r\n            }\r\n        } catch (Exception e) {\r\n            // Token is invalid\r\n            logger.error(\"JWT Token validation failed: \" + e.getMessage());\r\n        }\r\n        \r\n        filterChain.doFilter(request, response);\r\n    }\r\n}"
+                },
+                "codebaseEnabled": true,
+                "ragFiles": [
+                    {
+                        "path": "src/main/java/assessment/manager/security/SecurityConfig.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "sources": [
+                            "keyword_search"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": [
+                            "keyword_search"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtUtil.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "sources": [
+                            "keyword_search"
+                        ]
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\Main.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\Main.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\exceptions\\UnauthorizedException.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\exceptions\\UnauthorizedException.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "pom.xml",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\pom.xml",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\resources\\application.properties",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\resources\\application.properties",
+                        "sources": []
+                    },
+                    {
+                        "path": ".gitignore",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\.gitignore",
+                        "sources": []
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/enums/UserRole.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\enums\\UserRole.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/data/models/Question.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\data\\models\\Question.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/data/models/Submission.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\data\\models\\Submission.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/data/models/User.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\data\\models\\User.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/SecurityConfig.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/Main.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\Main.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtUtil.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "pom.xml",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\pom.xml",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    }
+                ],
+                "rerankedFiles": [
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java"
+                    }
+                ],
+                "usedFilePaths": [
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": [
+                            "opened_tab"
+                        ],
+                        "content": "package assessment.manager.security;\r\n\r\nimport jakarta.servlet.FilterChain;\r\nimport jakarta.servlet.ServletException;\r\nimport jakarta.servlet.http.HttpServletRequest;\r\nimport jakarta.servlet.http.HttpServletResponse;\r\nimport org.springframework.beans.factory.annotation.Autowired;\r\nimport org.springframework.security.authentication.UsernamePasswordAuthenticationToken;\r\nimport org.springframework.security.core.authority.SimpleGrantedAuthority;\r\nimport org.springframework.security.core.context.SecurityContextHolder;\r\nimport org.springframework.security.web.authentication.WebAuthenticationDetailsSource;\r\nimport org.springframework.stereotype.Component;\r\nimport org.springframework.web.filter.OncePerRequestFilter;\r\nimport io.jsonwebtoken.Claims;\r\nimport io.jsonwebtoken.Jwts;\r\nimport io.jsonwebtoken.security.Keys;\r\n\r\nimport javax.crypto.SecretKey;\r\nimport java.io.IOException;\r\nimport java.util.List;\r\nimport java.util.stream.Collectors;\r\n\r\n@Component\r\npublic class JwtAuthenticationFilter extends OncePerRequestFilter {\r\n\r\n    private final String jwtSecret = \"mySecretKey12345678901234567890\"; // Should be in application.properties\r\n    private final SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());\r\n\r\n    @Override\r\n    protected void doFilterInternal(HttpServletRequest request, \r\n                                  HttpServletResponse response, \r\n                                  FilterChain filterChain) throws ServletException, IOException {\r\n        \r\n        String authHeader = request.getHeader(\"Authorization\");\r\n        \r\n        if (authHeader == null || !authHeader.startsWith(\"Bearer \")) {\r\n            filterChain.doFilter(request, response);\r\n            return;\r\n        }\r\n        \r\n        String token = authHeader.substring(7);\r\n        \r\n        try {\r\n            Claims claims = Jwts.parserBuilder()\r\n                    .setSigningKey(key)\r\n                    .build()\r\n                    .parseClaimsJws(token)\r\n                    .getBody();\r\n            \r\n            String username = claims.getSubject();\r\n            @SuppressWarnings(\"unchecked\")\r\n            List<String> authorities = (List<String>) claims.get(\"authorities\");\r\n            \r\n            if (username != null && authorities != null && SecurityContextHolder.getContext().getAuthentication() == null) {\r\n                List<SimpleGrantedAuthority> grantedAuthorities = authorities.stream()\r\n                        .map(SimpleGrantedAuthority::new)\r\n                        .collect(Collectors.toList());\r\n                \r\n                UsernamePasswordAuthenticationToken authToken = \r\n                    new UsernamePasswordAuthenticationToken(username, null, grantedAuthorities);\r\n                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));\r\n                \r\n                SecurityContextHolder.getContext().setAuthentication(authToken);\r\n            }\r\n        } catch (Exception e) {\r\n            // Token is invalid\r\n            logger.error(\"JWT Token validation failed: \" + e.getMessage());\r\n        }\r\n        \r\n        filterChain.doFilter(request, response);\r\n    }\r\n}"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java"
+                    }
+                ]
+            },
+            "createdAt": 1751459407881,
+            "isInternal": false,
+            "rawContent": {
+                "type": "doc",
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Caused by: org.springframework.beans.BeanInstantiationException: Failed to instantiate [assessment.manager.security.JwtAuthenticationFilter]: Constructor threw exception"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat org.springframework.beans.BeanUtils.instantiateClass(BeanUtils.java:222) ~[spring-beans-6.2.7.jar:6.2.7]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:122) ~[spring-beans-6.2.7.jar:6.2.7]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateBean(AbstractAutowireCapableBeanFactory.java:1351) ~[spring-beans-6.2.7.jar:6.2.7]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\t... 52 common frames omitted"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Caused by: java.lang.IllegalArgumentException: The ES256 algorithm does not support shared secret keys."
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat io.jsonwebtoken.security.Keys.secretKeyFor(Keys.java:140) ~[jjwt-api-0.11.5.jar:0.11.5]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat assessment.manager.security.JwtAuthenticationFilter.<init>(JwtAuthenticationFilter.java:28) ~[classes/:na]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat java.base/jdk.internal.reflect.DirectConstructorHandleAccessor.newInstance(DirectConstructorHandleAccessor.java:62) ~[na:na]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:501) ~[na:na]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:485) ~[na:na]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\tat org.springframework.beans.BeanUtils.instantiateClass(BeanUtils.java:196) ~[spring-beans-6.2.7.jar:6.2.7]"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "\t... 54 common frames omitted"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "406258a7-95be-48d7-9b30-2e20a0998bfd",
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "The error you're encountering is due to the use of the `ES256` algorithm with a shared secret key. The `ES256` algorithm is an Elliptic Curve Digital Signature Algorithm (ECDSA) and does not support shared secret keys. Instead, it requires a key pair (private and public keys).\n\nTo resolve this issue, you should switch to an HMAC algorithm like `HS256`, which is compatible with shared secret keys. Here's how you can update your `JwtAuthenticationFilter` class:\n\n1. **Change the Signature Algorithm**: Use `HS256` instead of `ES256`.\n\n2. **Generate a Secure Key**: Ensure your secret key is at least 256 bits long. You can use `Keys.hmacShaKeyFor()` to generate a secure key from your secret string.\n\nHere's the updated code:\n\n```java\npackage assessment.manager.security;\n\nimport io.jsonwebtoken.SignatureAlgorithm;\nimport jakarta.servlet.FilterChain;\nimport jakarta.servlet.ServletException;\nimport jakarta.servlet.http.HttpServletRequest;\nimport jakarta.servlet.http.HttpServletResponse;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.security.authentication.UsernamePasswordAuthenticationToken;\nimport org.springframework.security.core.authority.SimpleGrantedAuthority;\nimport org.springframework.security.core.context.SecurityContextHolder;\nimport org.springframework.security.web.authentication.WebAuthenticationDetailsSource;\nimport org.springframework.stereotype.Component;\nimport org.springframework.web.filter.OncePerRequestFilter;\nimport io.jsonwebtoken.Claims;\nimport io.jsonwebtoken.Jwts;\nimport io.jsonwebtoken.security.Keys;\n\nimport javax.crypto.SecretKey;\nimport java.io.IOException;\nimport java.util.List;\nimport java.util.stream.Collectors;\n\n@Component\npublic class JwtAuthenticationFilter extends OncePerRequestFilter {\n\n    // Ensure your secret is at least 32 characters long for HS256\n    private final String jwtSecret = \"mySecretKey12345678901234567890\"; // Should be in application.properties\n    private final SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());\n\n    @Override\n    protected void doFilterInternal(HttpServletRequest request, \n                                  HttpServletResponse response, \n                                  FilterChain filterChain) throws ServletException, IOException {\n        \n        String authHeader = request.getHeader(\"Authorization\");\n        \n        if (authHeader == null || !authHeader.startsWith(\"Bearer \")) {\n            filterChain.doFilter(request, response);\n            return;\n        }\n        \n        String token = authHeader.substring(7);\n        \n        try {\n            Claims claims = Jwts.parserBuilder()\n                    .setSigningKey(key)\n                    .build()\n                    .parseClaimsJws(token)\n                    .getBody();\n            \n            String username = claims.getSubject();\n           \n            List<String> authorities = (List<String>) claims.get(\"authorities\");\n            \n            if (username != null && authorities != null && SecurityContextHolder.getContext().getAuthentication() == null) {\n                List<SimpleGrantedAuthority> grantedAuthorities = authorities.stream()\n                        .map(SimpleGrantedAuthority::new)\n                        .collect(Collectors.toList());\n                \n                UsernamePasswordAuthenticationToken authToken = \n                    new UsernamePasswordAuthenticationToken(username, null, grantedAuthorities);\n                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));\n                \n                SecurityContextHolder.getContext().setAuthentication(authToken);\n            }\n        } catch (Exception e) {\n            // Token is invalid\n            logger.error(\"JWT Token validation failed: \" + e.getMessage());\n        }\n        \n        filterChain.doFilter(request, response);\n    }\n}\n```\n\nMake sure to update any other parts of your application that rely on the `jwtSecret` to use this new key. This change should resolve the `IllegalArgumentException` related to the `ES256` algorithm."
+                }
+            ],
+            "context": {
+                "currentFile": {
+                    "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                    "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                    "sources": [
+                        "opened_tab"
+                    ],
+                    "content": "package assessment.manager.security;\r\n\r\nimport jakarta.servlet.FilterChain;\r\nimport jakarta.servlet.ServletException;\r\nimport jakarta.servlet.http.HttpServletRequest;\r\nimport jakarta.servlet.http.HttpServletResponse;\r\nimport org.springframework.beans.factory.annotation.Autowired;\r\nimport org.springframework.security.authentication.UsernamePasswordAuthenticationToken;\r\nimport org.springframework.security.core.authority.SimpleGrantedAuthority;\r\nimport org.springframework.security.core.context.SecurityContextHolder;\r\nimport org.springframework.security.web.authentication.WebAuthenticationDetailsSource;\r\nimport org.springframework.stereotype.Component;\r\nimport org.springframework.web.filter.OncePerRequestFilter;\r\nimport io.jsonwebtoken.Claims;\r\nimport io.jsonwebtoken.Jwts;\r\nimport io.jsonwebtoken.security.Keys;\r\n\r\nimport javax.crypto.SecretKey;\r\nimport java.io.IOException;\r\nimport java.util.List;\r\nimport java.util.stream.Collectors;\r\n\r\n@Component\r\npublic class JwtAuthenticationFilter extends OncePerRequestFilter {\r\n\r\n    private final String jwtSecret = \"mySecretKey12345678901234567890\"; // Should be in application.properties\r\n    private final SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());\r\n\r\n    @Override\r\n    protected void doFilterInternal(HttpServletRequest request, \r\n                                  HttpServletResponse response, \r\n                                  FilterChain filterChain) throws ServletException, IOException {\r\n        \r\n        String authHeader = request.getHeader(\"Authorization\");\r\n        \r\n        if (authHeader == null || !authHeader.startsWith(\"Bearer \")) {\r\n            filterChain.doFilter(request, response);\r\n            return;\r\n        }\r\n        \r\n        String token = authHeader.substring(7);\r\n        \r\n        try {\r\n            Claims claims = Jwts.parserBuilder()\r\n                    .setSigningKey(key)\r\n                    .build()\r\n                    .parseClaimsJws(token)\r\n                    .getBody();\r\n            \r\n            String username = claims.getSubject();\r\n            @SuppressWarnings(\"unchecked\")\r\n            List<String> authorities = (List<String>) claims.get(\"authorities\");\r\n            \r\n            if (username != null && authorities != null && SecurityContextHolder.getContext().getAuthentication() == null) {\r\n                List<SimpleGrantedAuthority> grantedAuthorities = authorities.stream()\r\n                        .map(SimpleGrantedAuthority::new)\r\n                        .collect(Collectors.toList());\r\n                \r\n                UsernamePasswordAuthenticationToken authToken = \r\n                    new UsernamePasswordAuthenticationToken(username, null, grantedAuthorities);\r\n                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));\r\n                \r\n                SecurityContextHolder.getContext().setAuthentication(authToken);\r\n            }\r\n        } catch (Exception e) {\r\n            // Token is invalid\r\n            logger.error(\"JWT Token validation failed: \" + e.getMessage());\r\n        }\r\n        \r\n        filterChain.doFilter(request, response);\r\n    }\r\n}"
+                },
+                "codebaseEnabled": true,
+                "ragFiles": [
+                    {
+                        "path": "src/main/java/assessment/manager/security/SecurityConfig.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "sources": [
+                            "keyword_search"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": [
+                            "keyword_search"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtUtil.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "sources": [
+                            "keyword_search"
+                        ]
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\Main.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\Main.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\exceptions\\UnauthorizedException.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\exceptions\\UnauthorizedException.java",
+                        "sources": []
+                    },
+                    {
+                        "path": "pom.xml",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\pom.xml",
+                        "sources": []
+                    },
+                    {
+                        "path": "src\\main\\resources\\application.properties",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\resources\\application.properties",
+                        "sources": []
+                    },
+                    {
+                        "path": ".gitignore",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\.gitignore",
+                        "sources": []
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/enums/UserRole.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\enums\\UserRole.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/data/models/Question.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\data\\models\\Question.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/data/models/Submission.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\data\\models\\Submission.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/data/models/User.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\data\\models\\User.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/SecurityConfig.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/Main.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\Main.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtUtil.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "src/main/java/assessment/manager/security/JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    },
+                    {
+                        "path": "pom.xml",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\pom.xml",
+                        "sources": [
+                            "opened_tab"
+                        ]
+                    }
+                ],
+                "rerankedFiles": [
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java"
+                    }
+                ],
+                "usedFilePaths": [
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "fsPath": "C:\\Users\\DELL\\Desktop\\Assessment_Management_Sysytem\\Backend\\src\\main\\java\\assessment\\manager\\security\\JwtAuthenticationFilter.java",
+                        "sources": [
+                            "opened_tab"
+                        ],
+                        "content": "package assessment.manager.security;\r\n\r\nimport jakarta.servlet.FilterChain;\r\nimport jakarta.servlet.ServletException;\r\nimport jakarta.servlet.http.HttpServletRequest;\r\nimport jakarta.servlet.http.HttpServletResponse;\r\nimport org.springframework.beans.factory.annotation.Autowired;\r\nimport org.springframework.security.authentication.UsernamePasswordAuthenticationToken;\r\nimport org.springframework.security.core.authority.SimpleGrantedAuthority;\r\nimport org.springframework.security.core.context.SecurityContextHolder;\r\nimport org.springframework.security.web.authentication.WebAuthenticationDetailsSource;\r\nimport org.springframework.stereotype.Component;\r\nimport org.springframework.web.filter.OncePerRequestFilter;\r\nimport io.jsonwebtoken.Claims;\r\nimport io.jsonwebtoken.Jwts;\r\nimport io.jsonwebtoken.security.Keys;\r\n\r\nimport javax.crypto.SecretKey;\r\nimport java.io.IOException;\r\nimport java.util.List;\r\nimport java.util.stream.Collectors;\r\n\r\n@Component\r\npublic class JwtAuthenticationFilter extends OncePerRequestFilter {\r\n\r\n    private final String jwtSecret = \"mySecretKey12345678901234567890\"; // Should be in application.properties\r\n    private final SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());\r\n\r\n    @Override\r\n    protected void doFilterInternal(HttpServletRequest request, \r\n                                  HttpServletResponse response, \r\n                                  FilterChain filterChain) throws ServletException, IOException {\r\n        \r\n        String authHeader = request.getHeader(\"Authorization\");\r\n        \r\n        if (authHeader == null || !authHeader.startsWith(\"Bearer \")) {\r\n            filterChain.doFilter(request, response);\r\n            return;\r\n        }\r\n        \r\n        String token = authHeader.substring(7);\r\n        \r\n        try {\r\n            Claims claims = Jwts.parserBuilder()\r\n                    .setSigningKey(key)\r\n                    .build()\r\n                    .parseClaimsJws(token)\r\n                    .getBody();\r\n            \r\n            String username = claims.getSubject();\r\n            @SuppressWarnings(\"unchecked\")\r\n            List<String> authorities = (List<String>) claims.get(\"authorities\");\r\n            \r\n            if (username != null && authorities != null && SecurityContextHolder.getContext().getAuthentication() == null) {\r\n                List<SimpleGrantedAuthority> grantedAuthorities = authorities.stream()\r\n                        .map(SimpleGrantedAuthority::new)\r\n                        .collect(Collectors.toList());\r\n                \r\n                UsernamePasswordAuthenticationToken authToken = \r\n                    new UsernamePasswordAuthenticationToken(username, null, grantedAuthorities);\r\n                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));\r\n                \r\n                SecurityContextHolder.getContext().setAuthentication(authToken);\r\n            }\r\n        } catch (Exception e) {\r\n            // Token is invalid\r\n            logger.error(\"JWT Token validation failed: \" + e.getMessage());\r\n        }\r\n        \r\n        filterChain.doFilter(request, response);\r\n    }\r\n}"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\JwtUtil.java"
+                    },
+                    {
+                        "path": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java",
+                        "fsPath": "src\\main\\java\\assessment\\manager\\security\\SecurityConfig.java"
+                    }
+                ]
+            },
+            "createdAt": 1751459443252,
+            "isInternal": false
+        }
+    ],
+    "isAgent": false,
+    "isNameGenerated": true,
+    "isCustomAgent": false,
+    "isUnitTestsAgent": false,
+    "isE2EAgent": false,
+    "autoApply": false
+}
+}
