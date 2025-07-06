@@ -1,14 +1,17 @@
 package assessment.manager.services.implementations;
 
+
 import assessment.manager.data.models.Assessment;
 import assessment.manager.data.repositories.AssessmentRepo;
 import assessment.manager.dtos.requests.*;
 import assessment.manager.dtos.responses.*;
-import assessment.manager.exceptions.*;
+import assessment.manager.exceptions.AssessmentNotFoundException;
+import assessment.manager.exceptions.AssessmentOperationException;
+import assessment.manager.exceptions.InvalidAssessmentRequestException;
 import assessment.manager.services.interfaces.AssessmentService;
-import assessment.manager.services.interfaces.QuestionService;
-import assessment.manager.services.interfaces.OptionService;
 import assessment.manager.services.interfaces.GradingService;
+import assessment.manager.services.interfaces.OptionService;
+import assessment.manager.services.interfaces.QuestionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -72,29 +75,28 @@ public class AssessmentServiceImpl implements AssessmentService {
 
     @Override
     public AssessmentResponse updateAssessment(UpdateAssessmentRequest request) {
-        try {
-            validateUpdateAssessmentRequest(request);
-            
-            Assessment existingAssessment = getAssessmentEntityById(request.getAssessmentId());
-            
-            Assessment updatedAssessment = Assessment.builder()
-                    .id(existingAssessment.getId())
-                    .creatorId(existingAssessment.getCreatorId())
-                    .title(request.getTitle())
-                    .description(request.getDescription())
-                    .questionIds(existingAssessment.getQuestionIds())
-                    .timerDuration(request.getTimerDuration())
-                    .isOptionsRandomize(request.isRandomizeOptions())
-                    .isQuestionsRandomize(request.isRandomizeQuestions())
-                    .createdAt(existingAssessment.getCreatedAt())
-                    .updatedAt(LocalDateTime.now())
-                    .build();
-            
-            Assessment savedAssessment = assessmentRepo.save(updatedAssessment);
-            return convertToAssessmentResponse(savedAssessment);
-        } catch (Exception e) {
-            throw new AssessmentOperationException("Error updating assessment: " + request.getAssessmentId(), e);
+        if (request == null) {
+            throw new InvalidAssessmentRequestException("Assessment update request cannot be null");
         }
+        validateUpdateAssessmentRequest(request);
+
+        Assessment existingAssessment = getAssessmentEntityById(request.getAssessmentId());
+
+        Assessment updatedAssessment = Assessment.builder()
+                .id(existingAssessment.getId())
+                .creatorId(existingAssessment.getCreatorId())
+                .title(request.getTitle())
+                .description(request.getDescription())
+                .questionIds(existingAssessment.getQuestionIds())
+                .timerDuration(request.getTimerDuration())
+                .isOptionsRandomize(request.isRandomizeOptions())
+                .isQuestionsRandomize(request.isRandomizeQuestions())
+                .createdAt(existingAssessment.getCreatedAt())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        Assessment savedAssessment = assessmentRepo.save(updatedAssessment);
+        return convertToAssessmentResponse(savedAssessment);
     }
     
     @Override
@@ -123,28 +125,17 @@ public class AssessmentServiceImpl implements AssessmentService {
 
     @Override
     public void setTimer(SetTimerRequest request) {
-        try {
-            Assessment assessment = getAssessmentEntityById(request.getAssessmentId());
-            
-            long timerDurationInSeconds = request.getDurationMinutes() * 60;
-            
-            Assessment updatedAssessment = Assessment.builder()
-                    .id(assessment.getId())
-                    .creatorId(assessment.getCreatorId())
-                    .title(assessment.getTitle())
-                    .description(assessment.getDescription())
-                    .questionIds(assessment.getQuestionIds())
-                    .timerDuration(timerDurationInSeconds)
-                    .isOptionsRandomize(assessment.isOptionsRandomize())
-                    .isQuestionsRandomize(assessment.isQuestionsRandomize())
-                    .createdAt(assessment.getCreatedAt())
-                    .updatedAt(LocalDateTime.now())
-                    .build();
-            
-            assessmentRepo.save(updatedAssessment);
-        } catch (Exception e) {
-            throw new AssessmentOperationException("Error setting timer for assessment: " + request.getAssessmentId(), e);
+        if (request == null || request.getAssessmentId() == null || request.getTimerInMinutes() < 0) {
+            throw new InvalidAssessmentRequestException("Invalid timer request");
         }
+
+        Assessment assessment = getAssessmentEntityById(request.getAssessmentId());
+
+        // Update the existing assessment object
+        assessment.setTimerDuration(request.getTimerInMinutes() * 60); // Convert minutes to seconds
+        assessment.setUpdatedAt(LocalDateTime.now());
+
+        assessmentRepo.save(assessment);
     }
 
     @Override
@@ -344,9 +335,11 @@ public class AssessmentServiceImpl implements AssessmentService {
     }
     
     private AssessmentResponse convertToAssessmentResponse(Assessment assessment) {
-        List<QuestionResponse> questions = assessment.getQuestionIds().stream()
-                .map(questionService::getQuestionById)
-                .collect(Collectors.toList());
+        List<QuestionResponse> questions = assessment.getQuestionIds() != null 
+                ? assessment.getQuestionIds().stream()
+                    .map(questionService::getQuestionById)
+                    .collect(Collectors.toList())
+                : new ArrayList<>();
         
         return AssessmentResponse.builder()
                 .id(assessment.getId())

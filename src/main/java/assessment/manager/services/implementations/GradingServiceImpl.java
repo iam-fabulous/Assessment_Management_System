@@ -1,13 +1,12 @@
 package assessment.manager.services.implementations;
 
-import assessment.manager.data.models.Assessment;
+
 import assessment.manager.data.models.Question;
-import assessment.manager.dtos.requests.AutoGradeRequest;
 import assessment.manager.dtos.requests.AnsweredQuestionRequest;
+import assessment.manager.dtos.requests.AutoGradeRequest;
 import assessment.manager.dtos.responses.GradeResponse;
-import assessment.manager.exceptions.InvalidAssessmentRequestException;
-import assessment.manager.exceptions.AssessmentNotFoundException;
 import assessment.manager.exceptions.GradingException;
+import assessment.manager.exceptions.InvalidAssessmentRequestException;
 import assessment.manager.services.interfaces.GradingService;
 import assessment.manager.services.interfaces.QuestionService;
 import lombok.RequiredArgsConstructor;

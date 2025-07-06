@@ -3,13 +3,13 @@ package assessment.manager.controllers;
 import assessment.manager.dtos.requests.*;
 import assessment.manager.dtos.responses.*;
 import assessment.manager.services.interfaces.AssessmentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import javax.validation.Valid;
 
 /**
  * REST Controller for managing assessments
@@ -111,7 +111,7 @@ public class AssessmentController {
             @Valid @RequestBody SetTimerRequest request) {
         
         log.info("Setting timer for assessment: {} to {} minutes", 
-                request.getAssessmentId(), request.getDurationMinutes());
+                request.getAssessmentId(), request.getTimerInMinutes());
         
         try {
             assessmentService.setTimer(request);
@@ -430,7 +430,7 @@ public class AssessmentController {
      */
     @PutMapping("/options")
     public ResponseEntity<OptionResponse> updateOption(
-            @Valid @RequestBody UpdateOptionRequest request) {
+            @Validated @RequestBody UpdateOptionRequest request) {
         
         log.info("Updating option with ID: {}", request.getOptionId());
         

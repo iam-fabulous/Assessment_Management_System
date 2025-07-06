@@ -9,5 +9,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class SetTimerRequest {
     private String assessmentId;
-    private long durationMinutes;
+    private long timerInMinutes;
 }

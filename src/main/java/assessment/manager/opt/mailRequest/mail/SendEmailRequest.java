@@ -1,8 +1,10 @@
 package assessment.manager.opt.mailRequest.mail;
 
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -11,6 +13,7 @@ import java.util.List;
 
 @Getter
 @Data
+@RequiredArgsConstructor
 public class SendEmailRequest {
 
     @Id

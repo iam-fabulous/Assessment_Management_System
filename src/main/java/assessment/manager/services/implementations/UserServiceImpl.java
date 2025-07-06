@@ -1,12 +1,12 @@
 package assessment.manager.services.implementations;
 
+
 import assessment.manager.data.models.User;
 import assessment.manager.data.repositories.UserRepo;
 import assessment.manager.dto.request.RegisterRequest;
 import assessment.manager.dto.request.VerifyEmailRequest;
 import assessment.manager.dto.response.OtpVerificationResponse;
 import assessment.manager.enums.UserRole;
-import assessment.manager.opt.mailRequest.MailService;
 import assessment.manager.services.interfaces.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;

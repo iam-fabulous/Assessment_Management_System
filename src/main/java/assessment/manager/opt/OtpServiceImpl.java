@@ -1,5 +1,6 @@
 package assessment.manager.opt;
 
+
 import assessment.manager.data.models.User;
 import org.springframework.stereotype.Service;
 
@@ -33,6 +34,7 @@ public class OtpServiceImpl implements OtpService {
         SecureRandom secureRandom = new SecureRandom();
         return String.valueOf(secureRandom.nextInt(10000, 100000));
     }
+
 
     @Override
     public OtpModel validateReceivedOtp(OtpModel receivedOtp, Long userId) {

@@ -1,16 +1,18 @@
 package assessment.manager.controllers;
 
+
 import assessment.manager.dtos.requests.CreateOptionRequest;
 import assessment.manager.dtos.requests.UpdateOptionRequest;
 import assessment.manager.dtos.responses.OptionResponse;
 import assessment.manager.services.interfaces.OptionService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import javax.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
@@ -29,12 +31,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/options")
 @RequiredArgsConstructor
-@Slf4j
+//@Slf4j
 @CrossOrigin(origins = "*")
 public class OptionController {
 
     private final OptionService optionService;
-
+    private static final Logger log = LoggerFactory.getLogger(OptionController.class);
     /**
      * Create a new option
      */
@@ -106,7 +108,6 @@ public class OptionController {
         
         try {
             List<OptionResponse> options = optionService.getAllOptionsForQuestion(questionId);
-            log.info("Found {} options for question: {}", options.size(), questionId);
             return ResponseEntity.ok(options);
         } catch (Exception e) {
             log.error("Error fetching options for question {}: {}", questionId, e.getMessage(), e);
